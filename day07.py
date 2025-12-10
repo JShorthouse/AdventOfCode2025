@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 
 @dataclass
-class Pos2D:
+class Beam:
     x: int
     y: int
+    count: int
 
 def print_map(map):
     for row in map:
@@ -13,6 +14,12 @@ def print_map(map):
     print('\n', end='')
 
 
+def find_beam(list, x, y):
+    for beam in list:
+        if beam.x == x and beam.y == y:
+            return beam
+
+    return None
 
 with open("input/07.txt", "r") as file:
     map = []
@@ -23,13 +30,10 @@ with open("input/07.txt", "r") as file:
     # Find start pos
     for i in range(len(map[0])):
         if map[0][i] == 'S':
-            start_pos = Pos2D(i, 0)
-
-    print(map)
-    print(start_pos)
+            start_pos = Beam(i, 0, 1)
 
     beam_list = [ start_pos ]
-    removed_beam_count = 0
+    finished_beams = []
     split_count = 0
 
     # Simulate beams
@@ -38,26 +42,32 @@ with open("input/07.txt", "r") as file:
         for beam in beam_list:
             new_y = beam.y + 1
             if new_y >= len(map):
-                removed_beam_count += 1
+                finished_beams.append( beam )
                 continue
 
             if map[new_y][beam.x] == '.':
-                new_pos = Pos2D(beam.x, new_y)
-                if not new_pos in new_beam_list:
-                    new_beam_list.append(new_pos)
+                existing_beam = find_beam(new_beam_list, beam.x, new_y)
+                if existing_beam is None:
+                    new_beam_list.append( Beam(beam.x, new_y, beam.count ) )
                     #map[new_y][beam.x] = '|'
+                else:
+                    existing_beam.count += beam.count
             elif map[new_y][beam.x] == '^':
                 # Found splitter, make new beams either side
-                left_beam = Pos2D(beam.x - 1, new_y)
-                right_beam = Pos2D(beam.x + 1, new_y)
+                left_beam = Beam(beam.x - 1, new_y, beam.count)
+                right_beam = Beam(beam.x + 1, new_y, beam.count)
                 # Dataclass implements __eq__ which is handy. Here we are checking
                 # for a position in the list that matches the X and Y, not an object
-                if not left_beam in new_beam_list:
+                existing_left = find_beam(new_beam_list, left_beam.x, left_beam.y)
+                existing_right = find_beam(new_beam_list, right_beam.x, right_beam.y)
+                if existing_left is None:
                     new_beam_list.append(left_beam)
-                    #map[new_y][beam.x-1] = '|'
-                if not right_beam in new_beam_list:
+                else:
+                    existing_left.count += beam.count
+                if existing_right is None:
                     new_beam_list.append(right_beam)
-                    #map[new_y][beam.x+1] = '|'
+                else:
+                    existing_right.count += beam.count
 
                 split_count += 1
             else:
@@ -68,7 +78,4 @@ with open("input/07.txt", "r") as file:
         beam_list = new_beam_list
 
     print("Part 1", split_count)
-
-# Thoughts for Part 2: build up a list of nodes and then use depth-first search
-# e.g. do an all-left path to start with, then work back up one node and do a full-left of
-# that node's right path etc. Recursion is probably the easiest way to achieve this
+    print("Part 2", sum(beam.count for beam in finished_beams))
